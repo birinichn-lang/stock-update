@@ -1,12 +1,9 @@
 import os
 import yfinance as yf
-from anthropic import Anthropic
 import requests
 
 def get_stock_data():
     # รายชื่อหุ้นที่คุณต้องการติดตาม
-    # SPY (S&P 500), AAPL (Apple), TSM (TSMC), ASML, NVDA (Nvidia), 
-    # GOOGL (Google), MSFT (Microsoft), TSLA (Tesla), PHO (Water Resources ETF)
     tickers = {
         "S&P 500 (SPY)": "SPY",
         "Apple (AAPL)": "AAPL",
@@ -19,51 +16,33 @@ def get_stock_data():
         "Water ETF (PHO)": "PHO"
     }
     
-    report = "ราคาปิดตลาดล่าสุด:\n"
+    header = "📊 รายงานหุ้นประจำวัน (DCA Plan)\n"
+    header += "---------------------------\n"
+    body = ""
+    
     for name, symbol in tickers.items():
         try:
             stock = yf.Ticker(symbol)
-            # ดึงข้อมูล 2 วันล่าสุดเพื่อดูการเปลี่ยนแปลง
-            hist = stock.history(period="2d")
+            # ดึงข้อมูล 5 วันล่าสุดเพื่อให้ครอบคลุมช่วงวันหยุด
+            hist = stock.history(period="5d")
+            
             if len(hist) >= 2:
                 current_price = hist['Close'].iloc[-1]
                 prev_price = hist['Close'].iloc[-2]
                 change = ((current_price - prev_price) / prev_price) * 100
-                report += f"- {name}: {current_price:.2f} ({change:+.2f}%)\n"
+                
+                # ใส่ Emoji ตามสถานะราคา
+                emoji = "📈" if change >= 0 else "📉"
+                body += f"{emoji} {name}\n   Price: {current_price:.2f}\n   Chg: {change:+.2f}%\n\n"
             else:
-                # กรณีวันหยุดหรือข้อมูลไม่ครบ
-                current_price = hist['Close'].iloc[-1] if not hist.empty else 0
-                report += f"- {name}: {current_price:.2f} (N/A)\n"
+                body += f"⚪ {name}: ข้อมูลไม่เพียงพอ\n\n"
         except Exception as e:
-            report += f"- {name}: Error fetching data\n"
+            body += f"⚠️ {name}: Error fetching data\n\n"
             
-    return report
-
-def ask_claude_to_summarize(raw_info):
-    client = Anthropic(api_key=os.environ["CLAUDE_API_KEY"])
+    footer = "---------------------------\n"
+    footer += "ขอให้เป็นวันที่ดีสำหรับการลงทุนครับ! 🚀"
     
-    # ปรับ Prompt ให้เน้นการวิเคราะห์กลุ่ม Tech/Semi และการ DCA
-    prompt = f"""
-    นี่คือข้อมูลราคาหุ้นรายวัน:
-    {raw_info}
-    
-    ในฐานะผู้เชี่ยวชาญด้านการลงทุน ช่วยสรุปข้อมูลนี้เป็นภาษาไทย:
-    1. ภาพรวมของหุ้นกลุ่ม Big Tech และ Semiconductor (NVDA, TSM, ASML) ว่าวันนี้เป็นอย่างไร
-    2. วิเคราะห์สั้นๆ ว่ากระทบต่อแผนการ DCA ระยะยาวอย่างไร (เช่น เป็นจังหวะเก็บเพิ่ม หรือควรระวัง)
-    3. เชื่อมโยงกับภาวะเงินเฟ้อหรือปัจจัยเศรษฐกิจมหภาคที่น่าสนใจ (ถ้ามี)
-    
-    ข้อกำหนด: 
-    - สรุปให้กระชับสำหรับอ่านใน LINE (ไม่เกิน 12-15 บรรทัด)
-    - ใช้ภาษาที่เป็นกันเองแต่ดูเป็นมืออาชีพ
-    - เน้นสาระสำคัญที่นักลงทุนต้องรู้ก่อนเริ่มงาน
-    """
-    
-    response = client.messages.create(
-        model="claude-3-5-sonnet-20240620",
-        max_tokens=800,
-        messages=[{"role": "user", "content": prompt}]
-    )
-    return response.content[0].text
+    return header + body + footer
 
 def send_to_line(message_text):
     url = "https://api.line.me/v2/bot/message/push"
@@ -80,9 +59,9 @@ def send_to_line(message_text):
 
 if __name__ == "__main__":
     try:
-        raw_data = get_stock_data()
-        final_summary = ask_claude_to_summarize(raw_data)
-        status = send_to_line(final_summary)
+        # ดึงข้อมูลและส่งเข้า LINE โดยตรง ไม่ผ่าน AI
+        final_message = get_stock_data()
+        status = send_to_line(final_message)
         print(f"Daily Update Sent! Status: {status}")
     except Exception as e:
         print(f"An error occurred: {e}")
