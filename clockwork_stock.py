@@ -5,7 +5,7 @@ import requests
 def get_stock_data():
     # รายชื่อหุ้นที่คุณต้องการติดตาม
     tickers = {
-        "S&P 500 (SPY)": "SPY",
+        "S&P 500 Sharia (SPUS)": "SPUS",
         "Apple (AAPL)": "AAPL",
         "TSMC (TSM)": "TSM",
         "ASML (ASML)": "ASML",
