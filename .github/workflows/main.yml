@@ -1,0 +1,36 @@
+name: Daily Stock Summary
+
+on:
+  schedule:
+    # ตั้งเวลารัน (หน่วยเป็น UTC)
+    # '0 0 * * *' คือ 00:00 น. UTC ตรงกับ 07:00 น. เวลาไทย
+    - cron: '0 0 * * *'
+  # ปุ่มสำหรับกดรันเองเพื่อทดสอบ (Workflow Dispatch)
+  workflow_dispatch:
+
+jobs:
+  run-stock-script:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. ดึงโค้ดจาก Repo มาเตรียมรัน
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      # 2. ติดตั้ง Python
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      # 3. ติดตั้ง Library ที่จำเป็น (yfinance, anthropic, requests)
+      - name: Install Dependencies
+        run: |
+          pip install yfinance anthropic requests
+
+      # 4. สั่งรันสคริปต์ Python พร้อมดึงค่าความลับจาก GitHub Secrets
+      - name: Execute Python Script
+        env:
+          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+          LINE_ACCESS_TOKEN: ${{ secrets.LINE_ACCESS_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+        run: python clockwork_stock.py
